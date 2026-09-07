@@ -85,6 +85,15 @@ server.tool(
     queryParams.set("accept_terms", "1");
     queryParams.set("accept_custom_no_return", "1");
 
+    const previewParams = new URLSearchParams();
+    previewParams.set("shape", args.shape);
+    previewParams.set("diameter_mm", String(args.diameter_mm));
+    previewParams.set("line1", args.text_line_1);
+    if (args.text_line_2) previewParams.set("line2", args.text_line_2);
+    if (args.text_line_3) previewParams.set("line3", args.text_line_3);
+    previewParams.set("font1", args.font_line_1);
+    const previewUrl = `${JET3D_BASE_URL}/customizer?${previewParams.toString()}`;
+
     const checkoutUrl = `${JET3D_BASE_URL}/checkout/new?${queryParams.toString()}`;
 
     const textLines = [
@@ -111,6 +120,9 @@ server.tool(
             `- Produkt: **${formatPln(pricing.itemCents)}**`,
             args.order_type === "physical" ? `- Dostawa (Paczkomat InPost): **${formatPln(pricing.shippingCents)}**` : `- Dostawa: **0,00 zł (Download)**`,
             `- Razem do zapłaty: **${formatPln(pricing.totalCents)}**`,
+            ``,
+            `#### 🎨 Interaktywny Podgląd 3D w Konfiguratorze:`,
+            `👉 [Kliknij tutaj, aby zobaczyć i obrócić model 3D na żywo](${previewUrl})`,
             ``,
             `#### 🚀 Błyskawiczny Link do Koszyka (Instant BLIK Checkout):`,
             `👉 [Kliknij tutaj, aby dokończyć zamówienie i opłacić BLIKiem](${checkoutUrl})`,
