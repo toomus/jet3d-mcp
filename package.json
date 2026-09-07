@@ -1,0 +1,50 @@
+{
+  "name": "@toomus/jet3d-mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server for Jet3D — design custom 3D printed cookie cutters, configure typography, and generate Instant BLIK checkout links.",
+  "license": "MIT",
+  "author": "Tomasz Boyke <kontakt@jet3d.pl>",
+  "homepage": "https://jet3d.pl",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toomus/jet3d-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/toomus/jet3d-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "jet3d",
+    "3d-printing",
+    "cookie-cutter",
+    "confectionery",
+    "baking",
+    "claude-desktop",
+    "cursor-mcp",
+    "blik",
+    "inpost"
+  ],
+  "type": "module",
+  "bin": {
+    "jet3d-mcp": "./build/index.js"
+  },
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.19",
+    "typescript": "^5.7.3"
+  }
+}
