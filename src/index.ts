@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import http from "node:http";
 import { z } from "zod";
 
 const SERVER_NAME = "jet3d-mcp";
 const SERVER_VERSION = "1.0.0";
 const JET3D_BASE_URL = "https://jet3d.pl";
 
-const server = new McpServer({
-  name: SERVER_NAME,
-  version: SERVER_VERSION
-});
+export function createMcpServer(): McpServer {
+  const server = new McpServer({
+    name: SERVER_NAME,
+    version: SERVER_VERSION
+  });
 
 // Helper for physical pricing
 function calculatePriceCents(diameterMm: number, orderType: "physical" | "digital"): { itemCents: number; shippingCents: number; totalCents: number } {
@@ -257,10 +260,107 @@ server.prompt(
   })
 );
 
+  return server;
+}
+
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Jet3D MCP Server running on stdio transport.");
+  const isHttp = Boolean(
+    process.env.PORT ||
+    process.argv.includes("--sse") ||
+    process.argv.includes("--http")
+  );
+
+  if (isHttp) {
+    const port = Number(process.env.PORT) || 3000;
+    const host = process.env.HOST || "0.0.0.0";
+
+    const sessions = new Map<string, { transport: SSEServerTransport; server: McpServer }>();
+
+    const httpServer = http.createServer(async (req, res) => {
+      // CORS headers for web agents & external inspector clients
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+
+      if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      const hostHeader = req.headers.host || "localhost";
+      const url = new URL(req.url || "/", "http://" + hostHeader);
+
+      // 1. Healthcheck for Kamal Proxy
+      if (url.pathname === "/health" && req.method === "GET") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "ok", server: SERVER_NAME, version: SERVER_VERSION, activeSessions: sessions.size }));
+        return;
+      }
+
+      // 2. Server-Sent Events endpoint
+      if (url.pathname === "/sse" && req.method === "GET") {
+        const transport = new SSEServerTransport("/message", res);
+        const sessionServer = createMcpServer();
+        sessions.set(transport.sessionId, { transport, server: sessionServer });
+
+        res.on("close", () => {
+          sessions.delete(transport.sessionId);
+          sessionServer.close().catch(() => {});
+        });
+
+        await sessionServer.connect(transport);
+        return;
+      }
+
+      // 3. Post message endpoint for SSE session
+      if (url.pathname === "/message" && req.method === "POST") {
+        const sessionId = url.searchParams.get("sessionId");
+        const session = sessionId ? sessions.get(sessionId) : undefined;
+        if (!session) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Session not found or expired" }));
+          return;
+        }
+        await session.transport.handlePostMessage(req, res);
+        return;
+      }
+
+      // 4. Root information endpoint
+      if (url.pathname === "/" && req.method === "GET") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          name: SERVER_NAME,
+          version: SERVER_VERSION,
+          description: "Jet3D Remote Model Context Protocol (MCP) Server",
+          endpoints: {
+            health: "/health",
+            sse: "/sse",
+            message: "/message"
+          },
+          website: JET3D_BASE_URL,
+          tools: [
+            "create_custom_cutter_checkout",
+            "get_cutter_specifications",
+            "list_available_shapes_and_fonts"
+          ]
+        }, null, 2));
+        return;
+      }
+
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not Found" }));
+    });
+
+    httpServer.listen(port, host, () => {
+      console.log("Jet3D MCP Server listening on http://" + host + ":" + port + " (SSE: /sse, Health: /health)");
+    });
+  } else {
+    const server = createMcpServer();
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error("Jet3D MCP Server running on stdio transport.");
+  }
 }
 
 main().catch((error) => {

@@ -17,6 +17,15 @@ This server enables AI assistants (**Claude Desktop**, **Cursor**, **Windsurf**,
 
 ## 🛠️ MCP Features
 
+### Remote MCP Server (SSE / Web Agents)
+
+If connecting via cloud platforms, web clients, or **Smithery.ai**:
+- **SSE Endpoint:** `https://mcp.jet3d.pl/sse`
+- **Health Check:** `https://mcp.jet3d.pl/health`
+- **Protocol:** Server-Sent Events (SSE) with standard JSON-RPC 2.0 transport
+
+---
+
 ### 1. Tools
 
 | Tool | Description |
